@@ -13,7 +13,13 @@
   "The process filter on the servers buffer, gives OUTPUT."
   (when (string= red-green--buffer-name (buffer-name))
     (setq red-green--output-since-last-command (concat red-green--output-since-last-command output))
+    (trim-overflowing-output-buffer)
     (red-green--process-output-while-full-chunk-exists)))
+
+(defun trim-overflowing-output-buffer ()
+  (if (>= (length red-green--output-since-last-command) 200)
+      (setq red-green--output-since-last-command
+            (substring red-green--output-since-last-command 100 nil))))
 
 (defun red-green--has-full-chunk ()
   "Check that we have a chunk."
