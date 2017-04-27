@@ -7,7 +7,13 @@
 (defvar red-green--green-color "green4")
 (defvar red-green--output-since-last-command "")
 (defvar red-green--buffer-name "guard")
-(defvar red-green--regexes '("[0-9]+ examples?, \\([0-9]+\\) failures?" "chrome [0-9]+ ([0-9]+/[0-9]+/\\([0-9]+\\))"))
+(defvar red-green--regexes '(
+                             "[0-9]+ examples?, \\([0-9]+\\) failures?"
+                             "chrome [0-9]+ ([0-9]+/[0-9]+/\\([0-9]+\\))"
+                             ))
+
+(defvar red-green--pass-regexes '("TOTAL: [0-9]+ SUCCESS"))
+(defvar red-green--fail-regexes '("TOTAL: [0-9]+ FAILED, [0-9]+ SUCCESS"))
 
 (defun red-green--process-filter (output)
   "The process filter on the servers buffer, gives OUTPUT."
@@ -21,10 +27,14 @@
       (setq red-green--output-since-last-command
             (substring red-green--output-since-last-command 100 nil))))
 
+(defun red-green--all-regexes ()
+  "Return all regexes"
+  (append red-green--regexes red-green--pass-regexes red-green--fail-regexes))
+
 (defun red-green--has-full-chunk ()
   "Check that we have a chunk."
   (let ((has-chunk nil))
-    (dolist (regex red-green--regexes)
+    (dolist (regex (red-green--all-regexes))
       (if (string-match regex  red-green--output-since-last-command)
           (setq has-chunk t)))
     has-chunk))
@@ -58,6 +68,24 @@
 
 (defun red-green--process-chunk (chunk)
   "Process a CHUNK."
+  (red-green--run-full-regexes chunk)
+  (red-green--run-pass-regexes chunk)
+  (red-green--run-fail-regexes chunk))
+
+(defun red-green--run-pass-regexes (chunk)
+  "Check pass regexes for CHUNK."
+  (dolist (regex red-green--pass-regexes)
+    (if (string-match regex chunk)
+        (tests-are-passing))))
+
+(defun red-green--run-fail-regexes (chunk)
+  "Check fail regexes for CHUNK."
+  (dolist (regex red-green--fail-regexes)
+    (if (string-match regex chunk)
+        (tests-are-failing))))
+
+(defun red-green--run-full-regexes (chunk)
+  "Check full regexes for CHUNK."
   (dolist (regex red-green--regexes)
     (if (string-match regex chunk)
         (progn
